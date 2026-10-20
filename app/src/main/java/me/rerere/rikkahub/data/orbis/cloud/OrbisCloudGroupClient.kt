@@ -70,9 +70,9 @@ object OrbisCloudGroupClient {
                     content = o["content"]?.jsonPrimitive?.content ?: "",
                     kind = o["kind"]?.jsonPrimitive?.content ?: "chat",
                     createdAt = o["created_at"]?.jsonPrimitive?.content ?: "",
-                    attachmentUrl = o["attachment_url"]?.jsonPrimitive?.contentOrNull ?: "",
-                    attachmentName = o["attachment_name"]?.jsonPrimitive?.contentOrNull ?: "",
-                    attachmentType = o["attachment_type"]?.jsonPrimitive?.contentOrNull ?: "",
+                    attachmentUrl = runCatching { o["attachment_url"]?.jsonPrimitive?.content }.getOrNull() ?: "",
+                    attachmentName = runCatching { o["attachment_name"]?.jsonPrimitive?.content }.getOrNull() ?: "",
+                    attachmentType = runCatching { o["attachment_type"]?.jsonPrimitive?.content }.getOrNull() ?: "",
                 )
             }.reversed() // 最早的消息在前
         }

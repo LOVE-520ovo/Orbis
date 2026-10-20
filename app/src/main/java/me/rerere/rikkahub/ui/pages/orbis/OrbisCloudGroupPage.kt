@@ -5,6 +5,7 @@ import android.database.Cursor
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -279,7 +280,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                             HugeIcons.Image02,
                             contentDescription = "发图片",
                             tint = OrbisTheme.colors.mutedInk,
-                            modifier = Modifier.size(22.dp).clickable { imagePicker.launch(null) }
+                            modifier = Modifier.size(22.dp).clickable { imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
                         )
                         Icon(
                             HugeIcons.File02,
@@ -359,7 +360,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { bgPicker.launch(null) }) { Text("选择背景图片") }
+                        Button(onClick = { bgPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) { Text("选择背景图片") }
                         if (bgImagePath != null) {
                             TextButton(onClick = {
                                 bgImagePath = null
@@ -475,7 +476,7 @@ private fun CloudBubble(m: CloudGroupMessage, bubbleAlpha: Float, mine: Boolean)
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(HugeIcons.Attachment01, null,
+                    Icon(HugeIcons.File02, null,
                         modifier = Modifier.size(16.dp),
                         tint = OrbisTheme.colors.mutedInk)
                     Text(
