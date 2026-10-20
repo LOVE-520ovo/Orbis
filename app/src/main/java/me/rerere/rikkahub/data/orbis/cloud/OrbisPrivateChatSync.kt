@@ -7,10 +7,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.MessageRole
-import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.util.json as aiJson
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import okhttp3.MediaType.Companion.toMediaType
@@ -75,14 +75,20 @@ object OrbisPrivateChatSync {
 
             var maxIndex = watermark
             for (node in nodes) {
-                val messages = runCatching {
-                    aiJson.decodeFromString<List<UIMessage>>(node.messages)
+                val arr = runCatching {
+                    JsonInstant.parseToJsonElement(node.messages).jsonArray
                 }.getOrNull() ?: continue
-                for (m in messages) {
-                    val text = m.parts.mapNotNull { p -> (p as? UIMessagePart.Text)?.text }
-                        .joinToString("\n").trim()
+                for (el in arr) {
+                    val o = el.jsonObject
+                    val role = o["role"]?.jsonPrimitive?.content ?: continue
+                    val parts = o["parts"]?.jsonArray ?: continue
+                    val text = parts.mapNotNull { p ->
+                        val po = p.jsonObject
+                        if (po["type"]?.jsonPrimitive?.content == "text")
+                            po["text"]?.jsonPrimitive?.content else null
+                    }.joinToString("\n").trim()
                     if (text.isEmpty()) continue
-                    val sender = if (m.role == MessageRole.USER) "xiaoya" else owner
+                    val sender = if (role == "user") "xiaoya" else owner
                     val body = buildJsonObject {
                         put("owner", owner)
                         put("peer", "xiaoya")
