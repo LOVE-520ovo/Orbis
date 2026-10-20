@@ -49,10 +49,10 @@ class ChatCompletionsReasoningControlTest {
         }
     }
 
-    @Test fun `generic OFF is explicit none rather than low in both request modes`() {
+    @Test fun `generic OFF maps to low so reasoning-only relays accept it`() {
         listOf(false, true).forEach { stream ->
             val body = request(ReasoningLevel.OFF, stream)
-            assertEquals("none", body.getValue("reasoning_effort").jsonPrimitive.content)
+            assertEquals("low", body.getValue("reasoning_effort").jsonPrimitive.content)
             assertFalse(body.containsKey("thinking"))
             assertFalse(body.containsKey("enable_thinking"))
         }
@@ -70,7 +70,7 @@ class ChatCompletionsReasoningControlTest {
     @Test fun `model name cannot turn an unknown relay into a native DeepSeek endpoint`() {
         listOf(false, true).forEach { stream ->
             val body = request(ReasoningLevel.OFF, stream, modelId = "deepseek-v4-flash-vision-exp")
-            assertEquals("none", body.getValue("reasoning_effort").jsonPrimitive.content)
+            assertEquals("low", body.getValue("reasoning_effort").jsonPrimitive.content)
             assertFalse(body.containsKey("thinking"))
         }
     }

@@ -373,13 +373,12 @@ class ChatCompletionsAPI(
                     }
 
                     else -> {
-                        // Generic OpenAI-compatible routes (including ST aliases) must
-                        // preserve an explicit OFF. "low" still enables reasoning.
-                        // Do not guess a native provider dialect from a public model
-                        // alias; the relay knows its real upstream, customBody can
-                        // supply provider-specific overrides, and AUTO stays unset.
+                        // Generic OpenAI-compatible routes (including ST aliases):
+                        // reasoning-only models (e.g. gpt-6.1-sol) reject effort
+                        // "none" with HTTP 400, so map OFF to "low" like the NVIDIA
+                        // branch. "low" still keeps reasoning at its minimum tier.
                         if (level != ReasoningLevel.AUTO) {
-                            put("reasoning_effort", level.effort)
+                            put("reasoning_effort", if (level.effort == "none") "low" else level.effort)
                         }
                     }
                 }
