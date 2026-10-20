@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.ui.pages.orbis
 
 import android.content.Context
+import android.database.Cursor
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,9 +16,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -42,20 +51,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Colors
+import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.UserGroup
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.orbis.cloud.OrbisCloudGroupClient
+import me.rerere.rikkahub.data.orbis.cloud.OrbisCloudGroupClient.Attachment
 import me.rerere.rikkahub.data.orbis.cloud.OrbisCloudGroupClient.CloudGroupMessage
 import me.rerere.rikkahub.data.orbis.cloud.OrbisPrivateChatSync
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownNew
+import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import org.koin.core.context.GlobalContext
+import java.io.File
 
 private const val PREFS = "orbis_cloud_group_prefs"
 private const val KEY_BUBBLE_ALPHA = "bubble_alpha"
 private const val KEY_BG_COLOR = "bg_color"
+private const val KEY_BG_IMAGE = "bg_image"
 
 private val BG_PRESETS = listOf(
     0xFF0B0E14L, // 默认深空
@@ -74,6 +97,11 @@ private fun displayName(sender: String): String = when (sender) {
     else -> sender
 }
 
+private fun assistantOf(name: String, assistants: List<Assistant>): Assistant? {
+    val n = name.trim()
+    return assistants.firstOrNull { it.name.contains(n) }
+}
+
 @Composable
 fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
     val context = LocalContext.current
@@ -86,10 +114,23 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
     var showSettings by remember { mutableStateOf(false) }
     var bubbleAlpha by remember { mutableStateOf(prefs.getFloat(KEY_BUBBLE_ALPHA, 0.9f)) }
     var bgColorValue by remember { mutableStateOf(prefs.getLong(KEY_BG_COLOR, BG_PRESETS.first())) }
+    var bgImagePath by remember { mutableStateOf(prefs.getString(KEY_BG_IMAGE, null)) }
     val listState = rememberLazyListState()
 
+    // 单聊里的 AI 列表（头像 + 名字来源）
+    val assistants by produceState<List<Assistant>>(emptyList()) {
+        value = runCatching {
+            GlobalContext.get().get<SettingsStore>().settingsFlow.first { !it.init }.assistants
+        }.getOrDefault(emptyList())
+    }
+
     fun savePrefs() {
-        prefs.edit().putFloat(KEY_BUBBLE_ALPHA, bubbleAlpha).putLong(KEY_BG_COLOR, bgColorValue).apply()
+        prefs.edit()
+            .putFloat(KEY_BUBBLE_ALPHA, bubbleAlpha)
+            .putLong(KEY_BG_COLOR, bgColorValue)
+            .apply()
+        if (bgImagePath != null) prefs.edit().putString(KEY_BG_IMAGE, bgImagePath).apply()
+        else prefs.edit().remove(KEY_BG_IMAGE).apply()
     }
 
     suspend fun refresh() {
@@ -98,6 +139,67 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
             error = null
         } catch (e: Exception) {
             error = e.message
+        }
+    }
+
+    // 背景图选择
+    val bgPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            scope.launch {
+                withContext(Dispatchers.IO) {
+                    val dest = File(context.filesDir, "cloud_group_bg")
+                    context.contentResolver.openInputStream(uri)?.use { ins ->
+                        dest.outputStream().use { outs -> ins.copyTo(outs) }
+                    }
+                    bgImagePath = dest.absolutePath
+                    savePrefs()
+                }
+            }
+        }
+    }
+
+    // 图片附件选择
+    val imagePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) scope.launch {
+            sending = true
+            try {
+                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                val name = "图片.${mime.substringAfterLast('/')}"
+                val att = OrbisCloudGroupClient.uploadAttachment(context, uri, name, mime)
+                OrbisCloudGroupClient.sendMessage("", att)
+                refresh()
+            } catch (e: Exception) {
+                error = e.message
+            } finally {
+                sending = false
+            }
+        }
+    }
+
+    // 文件附件选择
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) scope.launch {
+            sending = true
+            try {
+                val (name, mime) = withContext(Dispatchers.IO) {
+                    val n = queryDisplayName(context, uri) ?: "文件"
+                    val m = context.contentResolver.getType(uri) ?: "application/octet-stream"
+                    n to m
+                }
+                val att = OrbisCloudGroupClient.uploadAttachment(context, uri, name, mime)
+                OrbisCloudGroupClient.sendMessage("", att)
+                refresh()
+            } catch (e: Exception) {
+                error = e.message
+            } finally {
+                sending = false
+            }
         }
     }
 
@@ -122,6 +224,15 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
 
     OrbisPageSurface {
         Box(Modifier.fillMaxSize().background(Color(bgColorValue))) {
+            // 自定义背景图（优先级高于纯色）
+            if (bgImagePath != null) {
+                AsyncImage(
+                    model = File(bgImagePath!!),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                )
+            }
             Scaffold(
                 containerColor = Color.Transparent,
                 contentColor = OrbisTheme.colors.ink,
@@ -153,15 +264,29 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                         state = listState,
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(messages) { m -> CloudMessageBubble(m, bubbleAlpha) }
+                        items(messages) { m ->
+                            CloudMessageRow(m, bubbleAlpha, assistants)
+                        }
                     }
                     Row(
                         Modifier.fillMaxWidth().padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        Icon(
+                            HugeIcons.Image02,
+                            contentDescription = "发图片",
+                            tint = OrbisTheme.colors.mutedInk,
+                            modifier = Modifier.size(22.dp).clickable { imagePicker.launch(null) }
+                        )
+                        Icon(
+                            HugeIcons.File02,
+                            contentDescription = "发文件",
+                            tint = OrbisTheme.colors.mutedInk,
+                            modifier = Modifier.size(22.dp).clickable { filePicker.launch("*/*") }
+                        )
                         OutlinedTextField(
                             value = input,
                             onValueChange = { input = it },
@@ -218,7 +343,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                         color = OrbisTheme.colors.mutedInk)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         BG_PRESETS.forEach { c ->
-                            val selected = bgColorValue == c
+                            val selected = bgImagePath == null && bgColorValue == c
                             Box(
                                 Modifier
                                     .size(34.dp)
@@ -229,8 +354,17 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                                         else OrbisTheme.colors.border,
                                         shape = CircleShape
                                     )
-                                    .clickable { bgColorValue = c }
+                                    .clickable { bgImagePath = null; bgColorValue = c }
                             )
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = { bgPicker.launch(null) }) { Text("选择背景图片") }
+                        if (bgImagePath != null) {
+                            TextButton(onClick = {
+                                bgImagePath = null
+                                savePrefs()
+                            }) { Text("移除图片") }
                         }
                     }
                 }
@@ -239,36 +373,126 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
     }
 }
 
+private fun queryDisplayName(context: Context, uri: Uri): String? {
+    var name: String? = null
+    val cursor: Cursor? = context.contentResolver.query(uri, null, null, null, null)
+    cursor?.use {
+        if (it.moveToFirst()) {
+            val idx = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0) name = it.getString(idx)
+        }
+    }
+    return name
+}
+
 @Composable
-private fun CloudMessageBubble(m: CloudGroupMessage, bubbleAlpha: Float) {
+private fun CloudMessageRow(
+    m: CloudGroupMessage,
+    bubbleAlpha: Float,
+    assistants: List<Assistant>,
+) {
+    // 工具过程消息：居中灰条
+    if (m.kind == "tool") {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text(
+                m.content,
+                style = MaterialTheme.typography.bodySmall,
+                color = OrbisTheme.colors.mutedInk,
+                modifier = Modifier
+                    .background(
+                        OrbisTheme.colors.tintedPanel.copy(alpha = 0.55f),
+                        RoundedCornerShape(10.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            )
+        }
+        return
+    }
+
     val mine = m.sender == "xiaoya"
+    val name = displayName(m.sender)
+    val assistant = if (mine) null else assistantOf(name, assistants)
     Row(
         Modifier.fillMaxWidth(),
-        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
+        verticalAlignment = Alignment.Top
     ) {
-        Column(
-            Modifier.padding(4.dp),
-            horizontalAlignment = if (mine) Alignment.End else Alignment.Start
-        ) {
-            Text(
-                displayName(m.sender),
-                style = MaterialTheme.typography.labelSmall,
-                color = OrbisTheme.colors.mutedInk
-            )
-            Box(
-                Modifier
-                    .background(
-                        if (mine) OrbisTheme.colors.accent.copy(alpha = bubbleAlpha * 0.16f)
-                        else OrbisTheme.colors.tintedPanel.copy(alpha = bubbleAlpha),
-                        RoundedCornerShape(14.dp)
-                    )
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+        if (mine) {
+            Column(
+                Modifier.widthIn(max = 300.dp),
+                horizontalAlignment = Alignment.End
             ) {
-                if (m.kind == "system") {
-                    Text(m.content, style = MaterialTheme.typography.bodySmall, color = OrbisTheme.colors.mutedInk)
-                } else {
-                    MarkdownNew(m.content)
+                Text(name, style = MaterialTheme.typography.labelSmall,
+                    color = OrbisTheme.colors.mutedInk)
+                CloudBubble(m, bubbleAlpha, mine)
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top) {
+                UIAvatar(
+                    name = name,
+                    value = assistant?.avatar ?: Avatar.Dummy,
+                    modifier = Modifier.size(30.dp)
+                )
+                Column(
+                    Modifier.widthIn(max = 300.dp),
+                    horizontalAlignment = Alignment.Start
+                ) {
+                    Text(assistant?.name?.ifBlank { name } ?: name,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OrbisTheme.colors.mutedInk)
+                    CloudBubble(m, bubbleAlpha, mine)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CloudBubble(m: CloudGroupMessage, bubbleAlpha: Float, mine: Boolean) {
+    Column(
+        Modifier
+            .background(
+                if (mine) OrbisTheme.colors.accent.copy(alpha = bubbleAlpha * 0.16f)
+                else OrbisTheme.colors.tintedPanel.copy(alpha = bubbleAlpha),
+                RoundedCornerShape(14.dp)
+            )
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        // 附件
+        if (m.attachmentUrl.isNotBlank()) {
+            if (m.attachmentType == "image") {
+                AsyncImage(
+                    model = m.attachmentUrl,
+                    contentDescription = m.attachmentName,
+                    modifier = Modifier
+                        .widthIn(max = 220.dp)
+                        .heightIn(max = 280.dp),
+                )
+            } else {
+                Row(
+                    Modifier.padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(HugeIcons.Attachment01, null,
+                        modifier = Modifier.size(16.dp),
+                        tint = OrbisTheme.colors.mutedInk)
+                    Text(
+                        m.attachmentName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = OrbisTheme.colors.ink
+                    )
+                }
+            }
+        }
+        if (m.content.isNotBlank()) {
+            if (m.kind == "system") {
+                Text(m.content, style = MaterialTheme.typography.bodySmall,
+                    color = OrbisTheme.colors.mutedInk)
+            } else {
+                // 字号与单聊一致（bodyMedium）
+                MarkdownNew(m.content, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
