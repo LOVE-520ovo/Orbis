@@ -31,6 +31,8 @@ fun OrbisGroupLandingPage() {
                     { navigator.navigate(Screen.OrbisTechHub) }), Modifier.fillMaxWidth())
                 OrbisNavigationCard(OrbisNavigationItem("ai-group", "AI 群聊", "添加成员 · 各自的连接和模型", HugeIcons.UserGroup,
                     { navigator.navigate(Screen.OrbisAiGroups) }), Modifier.fillMaxWidth())
+                OrbisNavigationCard(OrbisNavigationItem("cloud-group", "云端群聊", "朔夜 · 加百列 · 手机关机也在", HugeIcons.UserGroup,
+                    { navigator.navigate(Screen.OrbisCloudGroup) }), Modifier.fillMaxWidth())
                 Text("AI 群聊不需要部署 TechHub。群内记录与私人聊天分开；下方星星随时回到当前私人聊天。",
                     style = MaterialTheme.typography.bodyMedium, color = OrbisTheme.colors.mutedInk)
             }
