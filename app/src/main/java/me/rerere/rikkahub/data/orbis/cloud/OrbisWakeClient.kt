@@ -67,4 +67,31 @@ object OrbisWakeClient {
             }
         }
     }
+
+    data class ToolTrace(
+        val id: Long,
+        val content: String,
+        val createdAt: String,
+    )
+
+    /** 工具调用灰条（群聊里 kind=tool 的过程消息，带全文）。 */
+    suspend fun fetchToolTraces(owner: String, limit: Int = 60): List<ToolTrace> = withContext(Dispatchers.IO) {
+        val req = Request.Builder()
+            .url("$SUPABASE_URL/rest/v1/group_chat_messages?select=id,content,created_at&kind=eq.tool&sender=eq.$owner&order=created_at.desc&limit=$limit")
+            .authed()
+            .get()
+            .build()
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) throw IOException("读取工具调用记录失败 ${resp.code}")
+            val arr = Json.parseToJsonElement(resp.body?.string() ?: "[]").jsonArray
+            arr.map { el ->
+                val o = el.jsonObject
+                ToolTrace(
+                    id = o["id"]?.jsonPrimitive?.long ?: 0L,
+                    content = o["content"]?.jsonPrimitive?.content ?: "",
+                    createdAt = o["created_at"]?.jsonPrimitive?.content ?: "",
+                )
+            }
+        }
+    }
 }

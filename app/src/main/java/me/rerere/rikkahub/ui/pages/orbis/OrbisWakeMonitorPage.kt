@@ -75,6 +75,7 @@ private fun toolDetail(raw: String): String = runCatching {
 fun OrbisWakeMonitorPage(hostVisible: Boolean = true) {
     var selected by rememberSaveable { mutableStateOf("shuoye") }
     var logs by remember { mutableStateOf<List<WakeLog>>(emptyList()) }
+    var traces by remember { mutableStateOf<List<OrbisWakeClient.ToolTrace>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -83,6 +84,7 @@ fun OrbisWakeMonitorPage(hostVisible: Boolean = true) {
         error = null
         try {
             logs = OrbisWakeClient.fetchLogs(selected, limit = 200)
+            traces = OrbisWakeClient.fetchToolTraces(selected, limit = 60)
         } catch (e: Exception) {
             error = e.message ?: "读取失败"
         } finally {
@@ -137,7 +139,7 @@ fun OrbisWakeMonitorPage(hostVisible: Boolean = true) {
                     logs.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("$name 还没有醒来记录", color = OrbisTheme.colors.mutedInk)
                     }
-                    else -> WakeTimeline(name, logs)
+                    else -> WakeTimeline(name, logs, traces)
                 }
             }
         }
@@ -145,7 +147,7 @@ fun OrbisWakeMonitorPage(hostVisible: Boolean = true) {
 }
 
 @Composable
-private fun WakeTimeline(name: String, logs: List<WakeLog>) {
+private fun WakeTimeline(name: String, logs: List<WakeLog>, traces: List<OrbisWakeClient.ToolTrace>) {
     val colors = OrbisTheme.colors
     val today = java.text.SimpleDateFormat("MM-dd", java.util.Locale.US)
         .apply { timeZone = java.util.TimeZone.getTimeZone("Asia/Hong_Kong") }
@@ -168,11 +170,45 @@ private fun WakeTimeline(name: String, logs: List<WakeLog>) {
                 StatCell("沉默", "$silent", Modifier.weight(1f))
                 StatCell("工具", "$toolCount", Modifier.weight(1f))
             }
+        }
+        item {
+            Text(
+                "工具调用记录",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight(790),
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Text(
+                "群聊里每一条工具过程（记记忆、检索等）的全文",
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.mutedInk,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        if (traces.isEmpty()) {
+            item {
+                Text(
+                    "还没有工具调用记录",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.mutedInk,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+            }
+        } else {
+            items(traces, key = { "trace-" + it.id }) { trace -> TraceCard(trace) }
+        }
+        item {
+            Text(
+                "醒来时间轴",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight(790),
+                modifier = Modifier.padding(top = 10.dp)
+            )
             Text(
                 "最近 ${logs.size} 次醒来（香港时间，最多 200 条）",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.mutedInk,
-                modifier = Modifier.padding(top = 10.dp)
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
         items(logs, key = { it.id }) { log -> WakeCard(log) }
@@ -188,6 +224,18 @@ private fun StatCell(label: String, value: String, modifier: Modifier = Modifier
     ) {
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight(790), color = colors.accent)
         Text(label, style = MaterialTheme.typography.labelSmall, color = colors.mutedInk)
+    }
+}
+
+@Composable
+private fun TraceCard(trace: OrbisWakeClient.ToolTrace) {
+    val colors = OrbisTheme.colors
+    Column(
+        Modifier.fillMaxWidth().background(colors.accent.copy(alpha = .07f), RoundedCornerShape(14.dp)).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(formatHk(trace.createdAt), style = MaterialTheme.typography.labelSmall, color = colors.accent)
+        Text(trace.content, style = MaterialTheme.typography.bodySmall, color = colors.ink)
     }
 }
 
