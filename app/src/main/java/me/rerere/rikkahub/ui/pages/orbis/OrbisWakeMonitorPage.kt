@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -154,10 +155,10 @@ private fun WakeTimeline(name: String, logs: List<WakeLog>) {
         item {
             Text("$name", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight(790))
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatCell("今日醒来", "${todayLogs.size}")
-                StatCell("开口", "$spoke")
-                StatCell("沉默", "$silent")
-                StatCell("工具", "$toolCount")
+                StatCell("今日醒来", "${todayLogs.size}", Modifier.weight(1f))
+                StatCell("开口", "$spoke", Modifier.weight(1f))
+                StatCell("沉默", "$silent", Modifier.weight(1f))
+                StatCell("工具", "$toolCount", Modifier.weight(1f))
             }
             Text(
                 "最近 ${logs.size} 次醒来（香港时间，最多 200 条）",
@@ -171,10 +172,10 @@ private fun WakeTimeline(name: String, logs: List<WakeLog>) {
 }
 
 @Composable
-private fun StatCell(label: String, value: String) {
+private fun StatCell(label: String, value: String, modifier: Modifier = Modifier) {
     val colors = OrbisTheme.colors
     Column(
-        Modifier.weight(1f).background(colors.raisedPanel, RoundedCornerShape(14.dp)).padding(vertical = 10.dp),
+        modifier.background(colors.raisedPanel, RoundedCornerShape(14.dp)).padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight(790), color = colors.accent)
