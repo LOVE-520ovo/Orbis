@@ -135,7 +135,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
     }
 
     // 小雅自己的头像（Orbis 显示设置里那个）
-    var userAvatar by remember { mutableStateOf(Avatar.Dummy) }
+    var userAvatar by remember { mutableStateOf<Avatar>(Avatar.Dummy) }
     LaunchedEffect(Unit) {
         userAvatar = runCatching {
             GlobalContext.get().get<SettingsStore>().settingsFlow.first { !it.init }.displaySetting.userAvatar
