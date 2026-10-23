@@ -256,9 +256,8 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                 contentColor = OrbisTheme.colors.ink,
                 topBar = {
                     OrbisPageHeader(
-                        title = "云端群聊",
-                        subtitle = "朔夜 · 加百列 · 服务器唤醒",
-                        avatar = { Icon(HugeIcons.UserGroup, null) },
+                        title = "天使轮盘赌（4）",
+                        centered = true,
                         navigationIcon = { BackButton() },
                         actions = {
                             Icon(

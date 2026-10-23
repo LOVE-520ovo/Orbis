@@ -208,12 +208,14 @@ fun OrbisChatDock(currentLabel: String = "当前 聊天", ownerAssistantId: Stri
                     { go(Screen.OrbisMemoryAtlas) }),
                 OrbisNavigationItem("tools", "工具娱乐", "工作区、文件与本地工具", HugeIcons.Command,
                     { go(orbisToolsRoute(ownerAssistantId, conversationId)) }),
+                OrbisNavigationItem("plugins", "插件", "唤醒观测台等扩展功能", HugeIcons.Puzzle,
+                    { go(Screen.OrbisPlugins) }),
                 OrbisNavigationItem("permissions", "后台与权限", "哨兵与手机设备能力", HugeIcons.SecurityCheck,
                     { go(Screen.OrbisPhone) }),
                 OrbisNavigationItem("settings", "系统设置", "模型、MCP、声音与数据", HugeIcons.Settings01,
                     { go(Screen.Setting) }),
             ) + if (showConsultationInNavigation(consultationEnabled, consultationAvailable)) listOf(
-                OrbisNavigationItem("consultation", "咨询室", "偷听角 · 独立人类授权", HugeIcons.Message01,
+                OrbisNavigationItem("consultation", "咨询室", "偷听角 �� 独立人类授权", HugeIcons.Message01,
                     { go(Screen.OrbisConsultation) })
             ) else emptyList())
             Text("开发中：灰色入口尚未连接真实服务。聊天使用现有会话，不创建副本。",

@@ -592,6 +592,12 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.OrbisCloudGroup> {
                                 me.rerere.rikkahub.ui.pages.orbis.OrbisCloudGroupPage(hostVisible = !orbisVisible)
                             }
+                            entry<Screen.OrbisPlugins> {
+                                me.rerere.rikkahub.ui.pages.orbis.OrbisPluginsPage(hostVisible = !orbisVisible)
+                            }
+                            entry<Screen.OrbisWakeMonitor> {
+                                me.rerere.rikkahub.ui.pages.orbis.OrbisWakeMonitorPage(hostVisible = !orbisVisible)
+                            }
                             entry<Screen.OrbisConsultation> {
                                 me.rerere.rikkahub.ui.pages.orbis.OrbisConsultationPage(hostVisible = !orbisVisible)
                             }
@@ -903,6 +909,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object OrbisCloudGroup : Screen
+
+    @Serializable
+    data object OrbisPlugins : Screen
+
+    @Serializable
+    data object OrbisWakeMonitor : Screen
 
     @Serializable
     data object OrbisConsultation : Screen

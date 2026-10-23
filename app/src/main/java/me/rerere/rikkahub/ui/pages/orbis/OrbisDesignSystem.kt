@@ -304,6 +304,7 @@ fun OrbisPageHeader(
     avatar: (@Composable () -> Unit)? = null,
     navigationIcon: (@Composable () -> Unit)? = null,
     compact: Boolean = false,
+    centered: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val colors = OrbisTheme.colors
@@ -338,12 +339,22 @@ fun OrbisPageHeader(
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, color = colors.ink, fontWeight = FontWeight(790),
-                    maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = .17.sp),
-                    modifier = Modifier.semantics { heading() })
-                if (!subtitle.isNullOrBlank()) {
+                if (centered) {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Text(title, color = colors.ink, fontWeight = FontWeight(790),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = .17.sp),
+                            modifier = Modifier.semantics { heading() })
+                    }
+                } else {
+                    Text(title, color = colors.ink, fontWeight = FontWeight(790),
+                        maxLines = if (compact) 1 else 2, overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 17.sp, lineHeight = 22.sp, letterSpacing = .17.sp),
+                        modifier = Modifier.semantics { heading() })
+                }
+                if (!centered && !subtitle.isNullOrBlank()) {
                     Text(subtitle, color = colors.mutedInk,
                         style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
