@@ -98,6 +98,15 @@ private fun displayName(sender: String): String = when (sender) {
     else -> sender
 }
 
+private fun formatTs(iso: String): String = runCatching {
+    val t = iso.substringBefore("+").substringBefore("Z").take(19)
+    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+    val d = sdf.parse(t) ?: return@runCatching ""
+    val out = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US)
+    out.timeZone = java.util.TimeZone.getTimeZone("Asia/Hong_Kong")
+    out.format(d)
+}.getOrDefault("")
+
 private fun assistantOf(name: String, assistants: List<Assistant>): Assistant? {
     val n = name.trim()
     return assistants.firstOrNull { it.name.contains(n) }
@@ -123,6 +132,14 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
         value = runCatching {
             GlobalContext.get().get<SettingsStore>().settingsFlow.first { !it.init }.assistants
         }.getOrDefault(emptyList())
+    }
+
+    // 小雅自己的头像（Orbis 显示设置里那个）
+    var userAvatar by remember { mutableStateOf(Avatar.Dummy) }
+    LaunchedEffect(Unit) {
+        userAvatar = runCatching {
+            GlobalContext.get().get<SettingsStore>().settingsFlow.first { !it.init }.displaySetting.userAvatar
+        }.getOrDefault(Avatar.Dummy)
     }
 
     fun savePrefs() {
@@ -268,7 +285,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(messages) { m ->
-                            CloudMessageRow(m, bubbleAlpha, assistants)
+                            CloudMessageRow(m, bubbleAlpha, assistants, userAvatar)
                         }
                     }
                     Row(
@@ -391,6 +408,7 @@ private fun CloudMessageRow(
     m: CloudGroupMessage,
     bubbleAlpha: Float,
     assistants: List<Assistant>,
+    userAvatar: Avatar,
 ) {
     // 工具过程消息：居中灰条
     if (m.kind == "tool") {
@@ -413,23 +431,47 @@ private fun CloudMessageRow(
     val mine = m.sender == "xiaoya"
     val name = displayName(m.sender)
     val assistant = if (mine) null else assistantOf(name, assistants)
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Top
-    ) {
-        if (mine) {
+    val ts = formatTs(m.createdAt)
+
+    if (mine) {
+        // 小雅：右侧，头像 + 昵称 + 单个气泡 + 时间戳
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Top
+        ) {
             Column(
                 Modifier.widthIn(max = 300.dp),
                 horizontalAlignment = Alignment.End
             ) {
-                Text(name, style = MaterialTheme.typography.labelSmall,
+                Text("小雅Lys", style = MaterialTheme.typography.labelSmall,
                     color = OrbisTheme.colors.mutedInk)
                 CloudBubble(m, bubbleAlpha, mine)
+                if (ts.isNotBlank()) {
+                    Text(ts, style = MaterialTheme.typography.labelSmall,
+                        color = OrbisTheme.colors.mutedInk)
+                }
             }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Top) {
+            UIAvatar(
+                name = "小雅Lys",
+                value = userAvatar,
+                modifier = Modifier.padding(start = 8.dp).size(30.dp)
+            )
+        }
+        return
+    }
+
+    // AI：按空行拆成多个气泡，每个气泡带头像 + 昵称，只有最后一个气泡带时间戳
+    val segments = m.content.split(Regex("\\n{2,}")).filter { it.isNotBlank() }
+    val parts = if (segments.size <= 1) listOf(m.content) else segments
+    Column(Modifier.fillMaxWidth()) {
+        parts.forEachIndexed { idx, seg ->
+            val isLast = idx == parts.lastIndex
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.Top
+            ) {
                 UIAvatar(
                     name = name,
                     value = assistant?.avatar ?: Avatar.Dummy,
@@ -442,7 +484,16 @@ private fun CloudMessageRow(
                     Text(assistant?.name?.ifBlank { name } ?: name,
                         style = MaterialTheme.typography.labelSmall,
                         color = OrbisTheme.colors.mutedInk)
-                    CloudBubble(m, bubbleAlpha, mine)
+                    val segMsg = if (idx == 0) {
+                        m.copy(content = seg)
+                    } else {
+                        m.copy(content = seg, attachmentUrl = "", attachmentName = "", attachmentType = "")
+                    }
+                    CloudBubble(segMsg, bubbleAlpha, mine)
+                    if (isLast && ts.isNotBlank()) {
+                        Text(ts, style = MaterialTheme.typography.labelSmall,
+                            color = OrbisTheme.colors.mutedInk)
+                    }
                 }
             }
         }
