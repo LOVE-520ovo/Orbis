@@ -50,17 +50,25 @@ private fun decisionLabel(d: String): String = when (d) {
     else -> d
 }
 
-private fun toolSummary(raw: String): String = runCatching {
+private fun toolDetail(raw: String): String = runCatching {
     if (raw.isBlank() || raw == "null") return ""
     val o = JSONObject(raw)
+    val lines = mutableListOf<String>()
     val cmd = o.optString("cmd", "")
+    when (cmd) {
+        "memo" -> lines.add("工具：写记忆")
+        "search" -> lines.add("工具：检索聊天记录")
+        "" -> {}
+        else -> lines.add("命令：$cmd")
+    }
     val arg = o.optString("arg", "")
+    if (arg.isNotBlank()) lines.add("做了什么：" + arg.replace("\n", " "))
     val res = o.optString("result", "")
-    val parts = mutableListOf<String>()
-    if (cmd.isNotBlank()) parts.add("工具：$cmd")
-    if (arg.isNotBlank()) parts.add("内容：" + arg.replace("\n", " ").let { if (it.length > 60) it.take(60) + "…" else it })
-    if (res.isNotBlank()) parts.add("结果：" + res.replace("\n", " ").let { if (it.length > 60) it.take(60) + "…" else it })
-    parts.joinToString("｜")
+    if (res.isNotBlank()) lines.add("结果：" + res.replace("\n", " ").let { if (it.length > 120) it.take(120) + "…" else it })
+    val gate = o.optString("gate", "")
+    if (gate.isNotBlank()) lines.add("群聊投递：$gate")
+    if (o.optString("error", "").isNotBlank()) lines.add("错误：" + o.optString("error"))
+    lines.joinToString("\n")
 }.getOrDefault("")
 
 @Composable
@@ -186,7 +194,7 @@ private fun StatCell(label: String, value: String, modifier: Modifier = Modifier
 @Composable
 private fun WakeCard(log: WakeLog) {
     val colors = OrbisTheme.colors
-    val tool = toolSummary(log.toolCalls)
+    val tool = toolDetail(log.toolCalls)
     val isSpoke = log.decision == "spoke"
     Column(
         Modifier.fillMaxWidth().background(colors.raisedPanel, RoundedCornerShape(16.dp)).padding(14.dp),
