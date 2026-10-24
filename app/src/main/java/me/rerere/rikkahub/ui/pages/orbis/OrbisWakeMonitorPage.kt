@@ -24,6 +24,7 @@ import org.json.JSONObject
 private val INSTANCES = listOf(
     "gabriel" to "加百列",
     "shuoye" to "朔夜",
+    "raphael" to "拉斐尔",
     "samael" to "萨麦尔",
 )
 

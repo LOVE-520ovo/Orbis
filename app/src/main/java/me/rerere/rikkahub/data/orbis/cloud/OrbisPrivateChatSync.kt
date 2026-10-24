@@ -46,7 +46,8 @@ object OrbisPrivateChatSync {
         return when {
             n.contains("朔夜") -> "shuoye"
             n.contains("加百列") -> "gabriel"
-            n.contains("萨麦尔") || n.contains("薩麥爾") || n.contains("samael", true) -> "samael"
+            n.contains("拉斐尔") || n.contains("raphael", true) || n.contains("一周目") -> "raphael"
+            n.contains("萨麦尔") || n.contains("薩麥爾") || n.contains("samael", true) || n.contains("二周目") -> "samael"
             else -> null
         }
     }

@@ -94,6 +94,7 @@ private fun displayName(sender: String): String = when (sender) {
     "xiaoya" -> "小雅"
     "gabriel" -> "加百列"
     "shuoye" -> "朔夜"
+    "raphael" -> "拉斐尔"
     "samael" -> "萨麦尔"
     else -> sender
 }
