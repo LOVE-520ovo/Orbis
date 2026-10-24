@@ -33,6 +33,7 @@ private fun instanceName(key: String): String = INSTANCES.firstOrNull { it.first
 private fun formatHk(iso: String): String = runCatching {
     val t = iso.substringBefore("+").substringBefore("Z").take(19)
     val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+    sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
     val d = sdf.parse(t) ?: return@runCatching ""
     val out = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US)
     out.timeZone = java.util.TimeZone.getTimeZone("Asia/Hong_Kong")
