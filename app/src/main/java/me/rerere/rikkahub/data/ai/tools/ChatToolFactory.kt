@@ -84,6 +84,12 @@ class ChatToolFactory(
                 readOnly = consultationReferenceOnly,
                 executeMemory = orbisMemoryRepository::execute))
         }
+        if (BuildConfig.ORBIS_ENABLED) {
+            val cloudOwner = me.rerere.rikkahub.data.orbis.cloud.OrbisPrivateChatSync.ownerOf(assistant.name)
+            if (cloudOwner != null) {
+                addAll(createOrbisCloudChatTools(cloudOwner))
+            }
+        }
         if (me.rerere.rikkahub.data.ai.legacyMemoryEnabled(assistant.enableMemory)) {
             val memoryAssistantId = if (assistant.useGlobalMemory) {
                 MemoryRepository.GLOBAL_MEMORY_ID
