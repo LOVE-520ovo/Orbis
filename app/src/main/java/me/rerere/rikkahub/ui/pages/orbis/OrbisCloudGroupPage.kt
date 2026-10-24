@@ -257,7 +257,7 @@ fun OrbisCloudGroupPage(hostVisible: Boolean = true) {
                 contentColor = OrbisTheme.colors.ink,
                 topBar = {
                     OrbisPageHeader(
-                        title = "天使轮盘赌（4）",
+                        title = "天使轮盘赌（5）",
                         centered = true,
                         navigationIcon = { BackButton() },
                         actions = {

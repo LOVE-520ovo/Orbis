@@ -115,17 +115,15 @@ fun OrbisWakeMonitorPage(hostVisible: Boolean = true) {
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     INSTANCES.forEach { (key, label) ->
-                        val isSamael = key == "samael"
                         FilterChip(
                             selected = selected == key,
-                            onClick = { if (!isSamael) selected = key },
+                            onClick = { selected = key },
                             label = {
                                 Text(
-                                    if (isSamael) "$label（未接入）" else label,
+                                    label,
                                     style = MaterialTheme.typography.labelMedium
                                 )
                             },
-                            enabled = !isSamael,
                         )
                     }
                 }
